@@ -1,0 +1,79 @@
+{
+  "automation": {
+    "framework": "headless",
+    "url": "https://www.claudecode-cn.com/dashboard",
+    "timeout": 60000,
+    "headless": true,
+    "getPointsInfo": true,
+    "checkInterval": 600000,
+    "lowPointsThreshold": 500
+  },
+  "login": {
+    "enabled": true,
+    "loginUrl": "https://www.claudecode-cn.com/login",
+    "credentials": {
+      "username": "your-username-here",
+      "password": "your-password-here"
+    },
+    "selectors": {
+      "usernameField": "input[type='email'], input[name='email'], input[placeholder*='邮箱'], input[placeholder*='用户名']",
+      "passwordField": "input[type='password'], input[name='password']",
+      "loginButton": "button[type='submit'], button:has-text('登录'), button:has-text('登入'), button:has-text('Sign in')"
+    }
+  },
+  "email": {
+    "enabled": true,
+    "smtp": {
+      "host": "smtp.163.com",
+      "port": 465,
+      "secure": true,
+      "user": "your-email@163.com",
+      "password": "your-smtp-auth-code",
+      "authMethod": "PLAIN"
+    },
+    "from": "your-email@163.com",
+    "to": "recipient@example.com",
+    "subject": "报警：积分重置失败"
+  },
+  "button": {
+    "primary": {
+      "textKeywords": [
+        "点击重置积分至上限",
+        "重置积分"
+      ],
+      "cssClasses": [
+        "w-full",
+        "bg-teal-600", 
+        "hover:bg-teal-700",
+        "text-white"
+      ],
+      "availableIndicators": [
+        "(1/1)",
+        "(1/1 次)",
+        "(0/1)"
+      ],
+      "usedIndicators": [
+        "今日已用完",
+        "(1/1)",
+        "已用完", 
+        "cursor-not-allowed"
+      ]
+    },
+    "confirm": {
+      "textKeywords": [
+        "确认重置"
+      ],
+      "cssClasses": [
+        "bg-teal-600",
+        "hover:bg-teal-700", 
+        "text-white"
+      ],
+      "timeout": 5000
+    },
+    "successIndicators": [
+      "重置成功",
+      "成功",
+      "完成"
+    ]
+  }
+}

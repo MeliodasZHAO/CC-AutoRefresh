@@ -1,0 +1,76 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+log-*.txt
+cron.out
+monitor.log
+daily-reset.log
+error.log
+autorefresh.log
+manual.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# Config files (contains sensitive info)
+config.json
+
+# Backup files
+crontab_backup_*
+*.backup
+
+# API analysis files
+api-analysis.json
+
+# Temporary files
+.tmp
+.temp
+temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Chrome/Chromium downloads
+downloads/
+
+# Package lock files (optional - include if you want to lock versions)
+# package-lock.json
+# yarn.lock
