@@ -114,7 +114,7 @@ crontab -l > crontab_backup_$(date +%Y%m%d_%H%M%S).txt 2>/dev/null || echo "当�
 crontab -l 2>/dev/null | grep -v "$PROJECT_DIR.*run_once.sh" | crontab - 2>/dev/null || true
 
 # 添加新任务（北京时间 23:55）
-CRON_JOB="55 23 * * * cd $PROJECT_DIR && TZ=Asia/Shanghai ./scripts/run_once.sh >> $PROJECT_DIR/logs/cron.out 2>&1"
+CRON_JOB="55 23 * * * cd $PROJECT_DIR && TZ=Asia/Shanghai node src/main.js --mode=daily-reset >> $PROJECT_DIR/logs/daily-reset.log 2>&1"
 (crontab -l 2>/dev/null || echo "") | { cat; echo "$CRON_JOB"; } | crontab -
 
 echo ""
