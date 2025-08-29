@@ -178,12 +178,41 @@ class HeadlessAutomation {
         await resetButton.click();
         await this.page.waitForTimeout(1000);
         
-        // 查找确认按钮
-        const confirmButton = this.page.locator('button:has-text("确认")').first();
-        if (await confirmButton.isVisible({ timeout: 3000 })) {
-          console.log('点击确认按钮...');
-          await confirmButton.click();
-          await this.page.waitForTimeout(2000);
+        // 查找确认按钮 - 使用多种选择器
+        console.log('🔍 查找确认按钮...');
+        
+        const confirmSelectors = [
+          'button:has-text("确认")',
+          'button:has-text("确定")', 
+          'button:has-text("OK")',
+          'button:has-text("Yes")',
+          'button[class*="confirm"]',
+          'button[class*="primary"]',
+          '.modal button:last-child',
+          '.dialog button:last-child'
+        ];
+        
+        let confirmFound = false;
+        for (const selector of confirmSelectors) {
+          try {
+            const confirmButton = this.page.locator(selector).first();
+            if (await confirmButton.isVisible({ timeout: 1000 })) {
+              const confirmText = await confirmButton.textContent();
+              console.log(`找到确认按钮: "${confirmText}" (选择器: ${selector})`);
+              await confirmButton.click();
+              await this.page.waitForTimeout(2000);
+              confirmFound = true;
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!confirmFound) {
+          console.log('❌ 未找到确认按钮，可能不需要确认或页面结构有变');
+        } else {
+          console.log('✅ 确认按钮已点击');
         }
         
         console.log('重置操作已完成');
@@ -465,12 +494,41 @@ class HeadlessAutomation {
         await resetButton.click();
         await this.page.waitForTimeout(1000);
         
-        // 查找确认按钮
-        const confirmButton = this.page.locator('button:has-text("确认")').first();
-        if (await confirmButton.isVisible({ timeout: 3000 })) {
-          console.log('点击确认按钮...');
-          await confirmButton.click();
-          await this.page.waitForTimeout(2000);
+        // 查找确认按钮 - 使用多种选择器
+        console.log('🔍 查找确认按钮...');
+        
+        const confirmSelectors = [
+          'button:has-text("确认")',
+          'button:has-text("确定")', 
+          'button:has-text("OK")',
+          'button:has-text("Yes")',
+          'button[class*="confirm"]',
+          'button[class*="primary"]',
+          '.modal button:last-child',
+          '.dialog button:last-child'
+        ];
+        
+        let confirmFound = false;
+        for (const selector of confirmSelectors) {
+          try {
+            const confirmButton = this.page.locator(selector).first();
+            if (await confirmButton.isVisible({ timeout: 1000 })) {
+              const confirmText = await confirmButton.textContent();
+              console.log(`找到确认按钮: "${confirmText}" (选择器: ${selector})`);
+              await confirmButton.click();
+              await this.page.waitForTimeout(2000);
+              confirmFound = true;
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!confirmFound) {
+          console.log('❌ 未找到确认按钮，可能不需要确认或页面结构有变');
+        } else {
+          console.log('✅ 确认按钮已点击');
         }
         
         console.log('强制重置操作已完成');

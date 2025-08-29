@@ -18,8 +18,8 @@ async function RESET_NOW() {
         console.log('⚡ 初始化框架...');
         await refresher.initFramework();
         
-        console.log('⚡ 执行重置操作...');
-        const result = await refresher.framework.execute();
+        console.log('⚡ 执行强制重置操作...');
+        const result = await refresher.framework.executeForceReset();
         
         console.log('');
         if (result && result.success) {
