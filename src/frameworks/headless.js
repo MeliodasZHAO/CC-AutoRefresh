@@ -484,14 +484,8 @@ class HeadlessAutomation {
       console.log(`强制点击重置按钮: "${buttonText}"`);
       
       try {
-        // 如果按钮被禁用，尝试启用它
-        await this.page.evaluate((button) => {
-          button.disabled = false;
-          button.style.pointerEvents = 'auto';
-          button.classList.remove('cursor-not-allowed');
-        }, resetButton);
-        
-        await resetButton.click();
+        // 直接点击，不传递复杂对象
+        await resetButton.click({ force: true });
         await this.page.waitForTimeout(1000);
         
         // 查找确认按钮 - 使用多种选择器
@@ -537,23 +531,41 @@ class HeadlessAutomation {
       } catch (error) {
         console.log('强制点击失败，尝试其他方法:', error.message);
         
-        // 备用方法：直接触发点击事件
+        // 备用方法：使用JavaScript点击
         try {
-          await this.page.evaluate((button) => {
-            button.click();
-          }, resetButton);
+          console.log('使用JavaScript点击方法...');
+          await this.page.evaluate(() => {
+            const buttons = document.querySelectorAll('button');
+            for (const btn of buttons) {
+              if (btn.textContent && (btn.textContent.includes('重置') || btn.textContent.includes('积分'))) {
+                console.log('找到按钮，执行点击:', btn.textContent);
+                btn.click();
+                break;
+              }
+            }
+          });
           
-          await this.page.waitForTimeout(1000);
+          await this.page.waitForTimeout(2000);
           
-          const confirmButton = this.page.locator('button:has-text("确认")').first();
-          if (await confirmButton.isVisible({ timeout: 3000 })) {
-            await confirmButton.click();
-            await this.page.waitForTimeout(2000);
+          // 查找确认按钮
+          const confirmSelectors = ['button:has-text("确认")', 'button:has-text("确定")', '.modal button', '.dialog button'];
+          for (const selector of confirmSelectors) {
+            try {
+              const confirmButton = this.page.locator(selector).first();
+              if (await confirmButton.isVisible({ timeout: 2000 })) {
+                console.log('点击确认按钮...');
+                await confirmButton.click({ force: true });
+                await this.page.waitForTimeout(2000);
+                break;
+              }
+            } catch (e) {
+              continue;
+            }
           }
           
           return true;
         } catch (e) {
-          console.error('所有点击方法都失败了:', e.message);
+          console.error('JavaScript点击也失败了:', e.message);
           return false;
         }
       }
