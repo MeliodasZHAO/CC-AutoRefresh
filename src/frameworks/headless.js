@@ -241,25 +241,17 @@ class HeadlessAutomation {
     const hour = bjTime.getHours();
     const minute = bjTime.getMinutes();
     
-    // 条件1: 积分小于500
-    if (currentPoints < 500) {
+    // 只保留定时触发：北京时间 23:55-23:59 (时间窗口，确保不会错过)
+    if (hour === 23 && minute >= 55) {
       return {
         should: true,
-        reason: `积分不足 (${currentPoints} < 500)`
-      };
-    }
-    
-    // 条件2: 北京时间 23:58-23:59 (时间窗口，避免错过精确时间点)
-    if (hour === 23 && minute >= 58) {
-      return {
-        should: true,
-        reason: `时间到达 23:${minute.toString().padStart(2, '0')} (每日重置时间窗口 23:58-23:59)`
+        reason: `时间到达 23:${minute.toString().padStart(2, '0')} (每日定时重置 23:55-23:59)`
       };
     }
     
     return {
       should: false,
-      reason: `积分充足 (${currentPoints}) 且非重置时间 (${hour}:${minute.toString().padStart(2, '0')})`
+      reason: `非重置时间 (${hour}:${minute.toString().padStart(2, '0')})，当前积分: ${currentPoints}`
     };
   }
 

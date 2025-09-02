@@ -39,87 +39,120 @@ class AutoRefresh {
   }
 
   async run() {
-    console.log(`开始执行: ${new Date().toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}`);
-    console.log(`检查间隔: ${this.config.automation.checkInterval / 1000 / 60} 分钟`);
-    console.log(`重置条件: 积分 < 500 或 时间到达23:58`);
+    console.log(`程序启动: ${new Date().toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}`);
+    console.log(`运行模式: 智能等待，仅在23:55-23:59触发重置`);
+    console.log('注意: 已关闭定期检查，大幅降低服务器资源消耗');
     console.log('');
     
     while (true) {
       const bjTime = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Shanghai'}));
-      console.log(`检查时间: ${bjTime.toLocaleString('zh-CN')}`);
+      const hour = bjTime.getHours();
+      const minute = bjTime.getMinutes();
       
-      try {
-        await this.initFramework();
-        const result = await this.framework.execute();
+      console.log(`当前时间: ${bjTime.toLocaleString('zh-CN')}`);
+      
+      // 只在23:55-23:59时间窗口内执行检查
+      if (hour === 23 && minute >= 55) {
+        console.log('🔥 进入重置时间窗口，开始执行重置操作...');
         
-        if (result.success) {
-          if (result.resetExecuted) {
-            console.log('✅ 重置操作完成');
-            if (result.pointsInfo) {
-              console.log(`积分状态: ${result.pointsInfo.formatted}`);
+        try {
+          await this.initFramework();
+          const result = await this.framework.execute();
+          
+          if (result.success) {
+            if (result.resetExecuted) {
+              console.log('✅ 定时重置操作完成');
+              if (result.pointsInfo) {
+                console.log(`积分状态: ${result.pointsInfo.formatted}`);
+              }
+            } else {
+              console.log('✓ 无需重置操作');
+              if (result.pointsInfo) {
+                console.log(`积分状态: ${result.pointsInfo.formatted}`);
+              }
             }
           } else {
-            console.log('✓ 无需操作');
-            if (result.pointsInfo) {
-              console.log(`积分状态: ${result.pointsInfo.formatted}`);
+            console.log('❌ 重置操作失败');
+            
+            // 发送邮件报警
+            if (this.config.email.enabled) {
+              const alertMessage = result.pointsInfo 
+                ? `定时重置失败，当前积分: ${result.pointsInfo.formatted}`
+                : '定时重置失败，请检查系统状态';
+              
+              try {
+                await sendEmailAlert(this.config.email, alertMessage);
+                console.log('已发送邮件报警');
+              } catch (emailError) {
+                console.error('邮件发送失败:', emailError.message);
+              }
             }
           }
-        } else {
-          console.log('❌ 操作失败');
+          
+        } catch (error) {
+          console.error('重置操作异常:', error.message);
           
           // 发送邮件报警
           if (this.config.email.enabled) {
-            const alertMessage = result.pointsInfo 
-              ? `重置失败，当前积分: ${result.pointsInfo.formatted}`
-              : '重置失败，请检查系统状态';
-            
             try {
-              await sendEmailAlert(this.config.email, alertMessage);
-              console.log('已发送邮件报警');
+              await sendEmailAlert(this.config.email, `定时重置异常: ${error.message}`);
+              console.log('已发送异常报警邮件');
             } catch (emailError) {
               console.error('邮件发送失败:', emailError.message);
             }
           }
-        }
-        
-      } catch (error) {
-        console.error('执行异常:', error.message);
-        
-        // 发送邮件报警
-        if (this.config.email.enabled) {
-          try {
-            await sendEmailAlert(this.config.email, `系统异常: ${error.message}`);
-            console.log('已发送异常报警邮件');
-          } catch (emailError) {
-            console.error('邮件发送失败:', emailError.message);
+        } finally {
+          if (this.framework && this.framework.cleanup) {
+            await this.framework.cleanup();
           }
         }
-      } finally {
-        if (this.framework && this.framework.cleanup) {
-          await this.framework.cleanup();
-        }
+        
+        // 重置完成后等待到第二天
+        console.log('重置操作完成，等待到明天23:55...');
+        const waitTime = this.calculateWaitTimeToNextDay();
+        console.log(`等待时间: ${Math.round(waitTime / 1000 / 60 / 60 * 100) / 100} 小时`);
+        await this.sleep(waitTime);
+        
+      } else {
+        // 非重置时间，计算等待时间到23:55
+        const waitTime = this.calculateWaitTimeToResetWindow();
+        const waitHours = Math.round(waitTime / 1000 / 60 / 60 * 100) / 100;
+        console.log(`等待到重置时间 23:55，还需等待 ${waitHours} 小时`);
+        console.log('程序进入休眠模式，降低服务器负载...\n');
+        
+        await this.sleep(waitTime);
       }
-      
-      // 动态调整检查间隔：临近23:58时更频繁检查
-      const nextInterval = this.getNextCheckInterval();
-      console.log(`等待 ${nextInterval / 1000 / 60} 分钟后继续...\n`);
-      await this.sleep(nextInterval);
     }
   }
 
-  getNextCheckInterval() {
+  calculateWaitTimeToResetWindow() {
     const bjTime = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Shanghai'}));
-    const hour = bjTime.getHours();
-    const minute = bjTime.getMinutes();
+    const now = bjTime.getTime();
     
-    // 在23:50-23:57之间，每2分钟检查一次，确保不会错过23:58-23:59窗口
-    if (hour === 23 && minute >= 50 && minute < 58) {
-      console.log('临近重置时间，加快检查频率到2分钟');
-      return 120000; // 2分钟
+    // 计算今天23:55的时间
+    const today2355 = new Date(bjTime);
+    today2355.setHours(23, 55, 0, 0);
+    
+    if (now < today2355.getTime()) {
+      // 还没到今天23:55，等待到今天23:55
+      return today2355.getTime() - now;
+    } else {
+      // 已经过了今天23:55，等待到明天23:55
+      const tomorrow2355 = new Date(today2355);
+      tomorrow2355.setDate(tomorrow2355.getDate() + 1);
+      return tomorrow2355.getTime() - now;
     }
+  }
+  
+  calculateWaitTimeToNextDay() {
+    const bjTime = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Shanghai'}));
     
-    // 其他时间使用正常间隔
-    return this.config.automation.checkInterval;
+    // 计算明天23:55的时间
+    const tomorrow2355 = new Date(bjTime);
+    tomorrow2355.setDate(tomorrow2355.getDate() + 1);
+    tomorrow2355.setHours(23, 55, 0, 0);
+    
+    return tomorrow2355.getTime() - bjTime.getTime();
   }
 
   sleep(ms) {
