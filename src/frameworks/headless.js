@@ -249,11 +249,11 @@ class HeadlessAutomation {
       };
     }
     
-    // 条件2: 北京时间 23:58
-    if (hour === 23 && minute === 58) {
+    // 条件2: 北京时间 23:58-23:59 (时间窗口，避免错过精确时间点)
+    if (hour === 23 && minute >= 58) {
       return {
         should: true,
-        reason: `时间到达 23:58 (每日重置时间)`
+        reason: `时间到达 23:${minute.toString().padStart(2, '0')} (每日重置时间窗口 23:58-23:59)`
       };
     }
     

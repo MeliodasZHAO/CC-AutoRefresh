@@ -100,9 +100,26 @@ class AutoRefresh {
         }
       }
       
-      console.log(`等待 ${this.config.automation.checkInterval / 1000 / 60} 分钟后继续...\n`);
-      await this.sleep(this.config.automation.checkInterval);
+      // 动态调整检查间隔：临近23:58时更频繁检查
+      const nextInterval = this.getNextCheckInterval();
+      console.log(`等待 ${nextInterval / 1000 / 60} 分钟后继续...\n`);
+      await this.sleep(nextInterval);
     }
+  }
+
+  getNextCheckInterval() {
+    const bjTime = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Shanghai'}));
+    const hour = bjTime.getHours();
+    const minute = bjTime.getMinutes();
+    
+    // 在23:50-23:57之间，每2分钟检查一次，确保不会错过23:58-23:59窗口
+    if (hour === 23 && minute >= 50 && minute < 58) {
+      console.log('临近重置时间，加快检查频率到2分钟');
+      return 120000; // 2分钟
+    }
+    
+    // 其他时间使用正常间隔
+    return this.config.automation.checkInterval;
   }
 
   sleep(ms) {
