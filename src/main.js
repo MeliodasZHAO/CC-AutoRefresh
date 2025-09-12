@@ -36,8 +36,8 @@ class AutoRefresh {
         const hour = now.getHours();
         const minute = now.getMinutes();
         
-        // 只在02:30-02:34执行
-        if (hour === 2 && minute >= 30 && minute <= 34) {
+        // 只在23:58-23:59执行
+        if (hour === 23 && minute >= 58 && minute <= 59) {
           console.log(`[${new Date().toLocaleString()}] 开始执行重置操作...`);
           
           try {
@@ -80,14 +80,14 @@ class AutoRefresh {
           
           // 等待到第二天
           const waitTime = this.getWaitTimeToNextDay();
-          console.log(`[${new Date().toLocaleString()}] 等待到明天02:30，约${Math.round(waitTime/1000/60/60)}小时`);
+          console.log(`[${new Date().toLocaleString()}] 等待到明天23:58，约${Math.round(waitTime/1000/60/60)}小时`);
           await this.sleep(Math.min(waitTime, 4 * 60 * 60 * 1000)); // 最多等待4小时
           
         } else {
-          // 等待到02:30
+          // 等待到23:58
           const waitTime = this.getWaitTimeToResetTime();
           const waitHours = Math.round(waitTime / 1000 / 60 / 60 * 10) / 10;
-          console.log(`[${new Date().toLocaleString()}] 等待到02:30，还需${waitHours}小时`);
+          console.log(`[${new Date().toLocaleString()}] 等待到23:58，还需${waitHours}小时`);
           
           await this.sleep(Math.min(waitTime, 2 * 60 * 60 * 1000)); // 最多等待2小时
         }
@@ -102,7 +102,7 @@ class AutoRefresh {
   getWaitTimeToResetTime() {
     const now = new Date();
     const target = new Date();
-    target.setHours(2, 30, 0, 0);
+    target.setHours(23, 58, 0, 0);
     
     if (now.getTime() >= target.getTime()) {
       target.setDate(target.getDate() + 1);
@@ -115,7 +115,7 @@ class AutoRefresh {
     const now = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(2, 30, 0, 0);
+    tomorrow.setHours(23, 58, 0, 0);
     
     return tomorrow.getTime() - now.getTime();
   }
