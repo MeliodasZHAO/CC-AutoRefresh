@@ -9,7 +9,7 @@ class HeadlessAutomation {
 
   async execute() {
     try {
-      console.log('启动无头浏览器...');
+      console.log('启动浏览器...');
       
       this.browser = await chromium.launch({
         headless: true,
@@ -17,247 +17,125 @@ class HeadlessAutomation {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote'
+          '--disable-gpu'
         ]
       });
       
       this.page = await this.browser.newPage();
-      await this.page.setViewportSize({ width: 1280, height: 720 });
-      this.page.setDefaultTimeout(this.config.automation.timeout);
+      await this.page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      this.page.setDefaultTimeout(30000);
       
       // 登录
+      console.log('开始登录...');
       await this.page.goto(this.config.login.loginUrl);
-      await this.page.waitForLoadState('domcontentloaded');
+      await this.page.waitForLoadState('networkidle');
       
-      const loginSuccess = await this.performLogin();
-      if (!loginSuccess) {
-        console.error('登录失败');
-        return { success: false };
+      if (!await this.performLogin()) {
+        return { success: false, error: '登录失败' };
       }
       
-      // 导航到Dashboard
-      await this.page.goto(this.config.automation.url);
-      await this.page.waitForLoadState('domcontentloaded');
-      await this.handlePopups();
+      console.log('登录成功');
       
-      // 获取积分信息
-      const pointsInfo = await this.getPointsInfo();
-      if (pointsInfo) {
-        console.log(`当前积分: ${pointsInfo.formatted} (${pointsInfo.percentage}%)`);
-      }
+      // 进入dashboard
+      await this.page.goto(this.config.automation?.url || 'https://www.claudecode-cn.com/dashboard');
+      await this.page.waitForLoadState('networkidle');
+      await this.page.waitForTimeout(2000);
       
-      // 检查重置条件
-      const bjTime = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Shanghai'}));
-      const needsReset = this.shouldReset(pointsInfo ? pointsInfo.current : 0, bjTime);
+      // 执行重置
+      const resetResult = await this.performReset();
       
-      if (needsReset.should) {
-        console.log(`触发重置: ${needsReset.reason}`);
-        const resetResult = await this.handleResetButton();
-        
-        if (resetResult) {
-          console.log('重置成功');
-          // 获取重置后积分
-          await this.page.waitForTimeout(2000);
-          const afterPoints = await this.getPointsInfo();
-          return {
-            success: true,
-            pointsInfo: afterPoints || pointsInfo,
-            resetExecuted: true,
-            timestamp: new Date().toISOString()
-          };
-        } else {
-          console.log('重置失败');
-          return { success: false, pointsInfo, resetExecuted: false };
-        }
-      } else {
-        console.log(`无需重置: ${needsReset.reason}`);
-        return {
-          success: true,
-          pointsInfo,
-          resetExecuted: false,
-          timestamp: new Date().toISOString()
-        };
-      }
+      return {
+        success: resetResult,
+        resetExecuted: resetResult,
+        timestamp: new Date().toISOString()
+      };
       
     } catch (error) {
-      console.error('执行失败:', error.message);
-      return { success: false };
+      console.log(`执行异常: ${error.message}`);
+      return { 
+        success: false, 
+        error: error.message
+      };
     }
   }
 
   async performLogin() {
     try {
-      await this.page.waitForTimeout(2000);
+      // 填写用户名
+      await this.page.fill('input[type="email"], input[name="email"]', this.config.login.credentials.username);
       
-      const usernameField = this.page.locator('input[type="email"], input[name="email"]').first();
-      await usernameField.fill(this.config.login.credentials.username);
+      // 填写密码
+      await this.page.fill('input[type="password"]', this.config.login.credentials.password);
       
-      const passwordField = this.page.locator('input[type="password"]').first();
-      await passwordField.fill(this.config.login.credentials.password);
+      // 点击登录按钮
+      await this.page.click('button[type="submit"], button:has-text("登录")');
       
-      const loginButton = this.page.locator('button[type="submit"], button:has-text("登录")').first();
-      await loginButton.click();
-      
+      // 等待跳转
       await this.page.waitForTimeout(3000);
-      return this.page.url().includes('/dashboard');
+      
+      // 检查是否登录成功
+      const url = this.page.url();
+      return !url.includes('/login');
       
     } catch (error) {
-      console.error('登录出错:', error.message);
+      console.log(`登录异常: ${error.message}`);
       return false;
     }
   }
 
-  async handlePopups() {
+  async performReset() {
     try {
-      const closeButton = this.page.locator('button[aria-label*="关闭"], button.absolute').first();
-      if (await closeButton.isVisible({ timeout: 2000 })) {
-        await closeButton.click();
-        await this.page.waitForTimeout(1000);
-      }
-    } catch (error) {
-      // 忽略弹窗处理错误
-    }
-  }
-
-  async handleResetButton() {
-    try {
-      await this.page.waitForTimeout(3000);
+      console.log('查找重置按钮...');
       
-      // 查找重置按钮
-      const buttons = await this.page.locator('button').all();
+      // 查找包含"重置"或"积分"的按钮
+      const buttons = await this.page.$$('button');
       let resetButton = null;
-      let buttonText = '';
       
       for (const button of buttons) {
         const text = await button.textContent();
         if (text && (text.includes('重置') || text.includes('积分'))) {
-          resetButton = button;
-          buttonText = text.trim();
-          console.log(`找到重置按钮: "${buttonText}"`);
-          break;
+          // 检查按钮是否可用
+          if (!text.includes('已用完') && !text.includes('0/1')) {
+            resetButton = button;
+            console.log(`找到重置按钮: ${text.trim()}`);
+            break;
+          }
         }
       }
       
       if (!resetButton) {
-        console.log('未找到重置按钮');
+        console.log('未找到可用的重置按钮');
         return false;
       }
       
-      // 检查按钮状态
-      if (buttonText.includes('已用完') || buttonText.includes('0/1')) {
-        console.log('今日已用完，跳过');
-        return true;
-      }
-      
       // 点击重置按钮
-      if (buttonText.includes('1/1') || buttonText.includes('可用')) {
-        console.log('执行重置点击...');
-        
-        try {
-          await resetButton.click({ force: true });
-          await this.page.waitForTimeout(1000);
-        } catch (e) {
-          // 使用JavaScript点击
-          await this.page.evaluate(() => {
-            const buttons = document.querySelectorAll('button');
-            for (const btn of buttons) {
-              if (btn.textContent && btn.textContent.includes('重置')) {
-                btn.click();
-                break;
-              }
-            }
-          });
-          await this.page.waitForTimeout(1000);
-        }
-        
-        // 查找并点击确认按钮
-        const confirmSelectors = [
-          'button:has-text("确认")',
-          'button:has-text("确定")',
-          '.modal button:last-child',
-          '.dialog button:last-child'
-        ];
-        
-        for (const selector of confirmSelectors) {
-          try {
-            const confirmButton = this.page.locator(selector).first();
-            if (await confirmButton.isVisible({ timeout: 2000 })) {
-              console.log('点击确认按钮');
-              await confirmButton.click({ force: true });
-              await this.page.waitForTimeout(2000);
-              break;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        return true;
-      }
-      
-      return false;
-      
-    } catch (error) {
-      console.error('重置按钮处理出错:', error.message);
-      return false;
-    }
-  }
-
-  async getPointsInfo() {
-    try {
+      await resetButton.click();
       await this.page.waitForTimeout(2000);
       
-      const pointsElement = this.page.locator('div.text-2xl.font-bold.text-primary').first();
-      
-      if (await pointsElement.isVisible({ timeout: 5000 })) {
-        const pointsText = await pointsElement.textContent();
-        const match = pointsText.trim().match(/^([\d,]+)\s*\/\s*([\d,]+)$/);
-        
-        if (match) {
-          const current = parseInt(match[1].replace(/,/g, ''));
-          const total = parseInt(match[2].replace(/,/g, ''));
-          const percentage = Math.round((current / total) * 100);
-          
-          return {
-            current: current,
-            total: total,
-            percentage: percentage,
-            formatted: `${current.toLocaleString()}/${total.toLocaleString()}`
-          };
-        }
+      // 查找确认按钮
+      try {
+        await this.page.click('button:has-text("确认"), button:has-text("确定")', { timeout: 3000 });
+        await this.page.waitForTimeout(2000);
+      } catch (e) {
+        // 可能没有确认对话框
       }
       
-      return null;
+      console.log('重置操作完成');
+      return true;
       
     } catch (error) {
-      console.error('获取积分信息出错:', error.message);
-      return null;
+      console.log(`重置操作失败: ${error.message}`);
+      return false;
     }
-  }
-
-  shouldReset(currentPoints, bjTime) {
-    const hour = bjTime.getHours();
-    const minute = bjTime.getMinutes();
-    
-    // 只保留定时触发：北京时间 23:55-23:59 (时间窗口，确保不会错过)
-    if (hour === 23 && minute >= 55) {
-      return {
-        should: true,
-        reason: `时间到达 23:${minute.toString().padStart(2, '0')} (每日定时重置 23:55-23:59)`
-      };
-    }
-    
-    return {
-      should: false,
-      reason: `非重置时间 (${hour}:${minute.toString().padStart(2, '0')})，当前积分: ${currentPoints}`
-    };
   }
 
   async cleanup() {
-    if (this.browser) {
-      await this.browser.close();
+    try {
+      if (this.browser) {
+        await this.browser.close();
+      }
+    } catch (error) {
+      console.log(`清理资源出错: ${error.message}`);
     }
   }
 }

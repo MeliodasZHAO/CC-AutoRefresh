@@ -1,23 +1,16 @@
 {
   "name": "cc-autorefresh",
-  "version": "1.0.0",
-  "description": "自动重置积分工具",
+  "version": "2.0.0",
+  "description": "Claude Code积分自动重置工具 - Ubuntu服务器版",
   "main": "src/main.js",
   "scripts": {
     "start": "node src/main.js",
-    "test": "node src/main.js --test",
-    "monitor": "node src/main.js --mode=monitor",
-    "daily-reset": "node src/main.js --mode=daily-reset",
-    "demo-monitor": "node test-monitor-mode.js",
-    "test-low-points": "node test-low-points.js"
+    "test": "node -c src/main.js && node -c src/frameworks/headless.js"
   },
   "dependencies": {
-    "playwright": "^1.40.0",
-    "selenium-webdriver": "^4.15.0",
-    "puppeteer": "^21.5.0",
-    "nodemailer": "^6.9.7"
+    "playwright": "^1.40.0"
   },
-  "keywords": ["automation", "refresh", "points"],
-  "author": "",
-  "license": "ISC"
+  "engines": {
+    "node": ">=16.0.0"
+  }
 }
