@@ -11,7 +11,9 @@ async function sendEmailAlert(emailConfig, message) {
         user: emailConfig.smtp.user,
         pass: emailConfig.smtp.password
       },
-      authMethod: emailConfig.smtp.authMethod || 'PLAIN'
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     // 发送邮件
