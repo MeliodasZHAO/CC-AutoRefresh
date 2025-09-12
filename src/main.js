@@ -110,7 +110,6 @@ class AutoRefresh {
     
     return target.getTime() - now.getTime();
   }
-  
   getWaitTimeToNextDay() {
     const now = new Date();
     const tomorrow = new Date();
