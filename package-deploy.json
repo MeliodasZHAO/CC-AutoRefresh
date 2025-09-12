@@ -1,0 +1,37 @@
+{
+  "name": "cc-autorefresh",
+  "version": "2.0.0",
+  "description": "Claude Code 积分自动重置工具 - 优化版",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node src/main.js",
+    "daemon": "node start.js",
+    "pm2": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop cc-autorefresh",
+    "pm2:restart": "pm2 restart cc-autorefresh",
+    "pm2:logs": "pm2 logs cc-autorefresh",
+    "install-deps": "npm install",
+    "test": "node -c src/main.js && node -c src/frameworks/headless.js"
+  },
+  "keywords": [
+    "automation",
+    "claude-code",
+    "refresh",
+    "points",
+    "schedule"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "nodemailer": "^6.9.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "your-repo-url"
+  }
+}

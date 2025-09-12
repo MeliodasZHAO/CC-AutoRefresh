@@ -61,14 +61,17 @@ class HeadlessAutomation {
 
   async performLogin() {
     try {
-      // 填写用户名
-      await this.page.fill('input[type="email"], input[name="email"]', this.config.login.credentials.username);
+      // 使用配置中的选择器
+      const selectors = this.config.login.selectors;
       
-      // 填写密码
-      await this.page.fill('input[type="password"]', this.config.login.credentials.password);
+      // 填写用户名
+      await this.page.fill(selectors.usernameField, this.config.login.credentials.username);
+      
+      // 填写密码  
+      await this.page.fill(selectors.passwordField, this.config.login.credentials.password);
       
       // 点击登录按钮
-      await this.page.click('button[type="submit"], button:has-text("登录")');
+      await this.page.click(selectors.loginButton);
       
       // 等待跳转
       await this.page.waitForTimeout(3000);

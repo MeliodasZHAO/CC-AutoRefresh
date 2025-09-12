@@ -8,6 +8,7 @@
     "test": "node -c src/main.js && node -c src/frameworks/headless.js"
   },
   "dependencies": {
+    "nodemailer": "^7.0.6",
     "playwright": "^1.40.0"
   },
   "engines": {
