@@ -90,45 +90,82 @@ class HeadlessAutomation {
   async performReset() {
     try {
       console.log('查找重置按钮...');
-      
+
       // 查找包含"重置"或"积分"的按钮
       const buttons = await this.page.$$('button');
       let resetButton = null;
-      
+      let allButtonTexts = [];
+
       for (const button of buttons) {
         const text = await button.textContent();
-        if (text && (text.includes('重置') || text.includes('积分'))) {
-          // 检查按钮是否可用
-          if (!text.includes('已用完') && !text.includes('0/1')) {
-            resetButton = button;
-            console.log(`找到重置按钮: ${text.trim()}`);
-            break;
+        if (text) {
+          allButtonTexts.push(text.trim());
+
+          if (text.includes('重置') || text.includes('积分')) {
+            // 检查按钮是否可用
+            if (!text.includes('已用完') && !text.includes('0/1')) {
+              resetButton = button;
+              console.log(`找到重置按钮: ${text.trim()}`);
+              break;
+            } else {
+              console.log(`发现不可用的重置按钮: ${text.trim()}`);
+            }
           }
         }
       }
-      
+
+      console.log(`页面上所有按钮: [${allButtonTexts.join(', ')}]`);
+
       if (!resetButton) {
         console.log('未找到可用的重置按钮');
+        // 保存页面截图用于调试
+        try {
+          await this.page.screenshot({ path: `debug-${Date.now()}.png`, fullPage: true });
+          console.log('已保存调试截图');
+        } catch (screenshotError) {
+          console.log(`截图失败: ${screenshotError.message}`);
+        }
         return false;
       }
-      
+
+      console.log('开始点击重置按钮...');
       // 点击重置按钮
       await resetButton.click();
+      console.log('重置按钮已点击，等待页面响应...');
       await this.page.waitForTimeout(2000);
-      
+
       // 查找确认按钮
+      console.log('查找确认按钮...');
       try {
-        await this.page.click('button:has-text("确认"), button:has-text("确定")', { timeout: 3000 });
+        await this.page.click('button:has-text("确认重置"), button:has-text("确认"), button:has-text("确定")', { timeout: 5000 });
+        console.log('确认按钮已点击');
         await this.page.waitForTimeout(2000);
       } catch (e) {
-        // 可能没有确认对话框
+        console.log(`未找到确认按钮或点击失败: ${e.message}`);
+        // 检查是否有对话框或模态框
+        const modalButtons = await this.page.$$('div[role="dialog"] button, .modal button, [class*="modal"] button');
+        if (modalButtons.length > 0) {
+          console.log(`发现${modalButtons.length}个模态框按钮，尝试点击确认按钮...`);
+          for (const btn of modalButtons) {
+            const btnText = await btn.textContent();
+            console.log(`模态框按钮: ${btnText}`);
+            if (btnText && (btnText.includes('确认') || btnText.includes('确定'))) {
+              await btn.click();
+              console.log('模态框确认按钮已点击');
+              break;
+            }
+          }
+        }
       }
-      
+
+      // 等待操作完成并检查结果
+      await this.page.waitForTimeout(3000);
       console.log('重置操作完成');
       return true;
-      
+
     } catch (error) {
       console.log(`重置操作失败: ${error.message}`);
+      console.log(`错误堆栈: ${error.stack}`);
       return false;
     }
   }
