@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 const { sendEmailAlert } = require('./email');
 
 const CONFIG_FILE = path.join(__dirname, '..', 'config.json');
@@ -33,53 +34,41 @@ class AutoRefresh {
     }
   }
 
-  // 检查是否已有实例在运行，如果有则终止旧实例
+  // 检查并强制终止所有旧实例
   checkAndReplaceOldInstance() {
+    console.log('检查现有实例...');
+
+    // 先清理锁文件
     if (fs.existsSync(LOCK_FILE)) {
       try {
-        const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8'));
-        const oldPid = lockData.pid;
-
-        // 检查旧进程是否还存活
-        try {
-          process.kill(oldPid, 0); // 不实际杀死进程，只检查是否存在
-          console.log(`检测到旧实例正在运行 (PID: ${oldPid})`);
-
-          // 尝试优雅地终止旧进程
-          try {
-            console.log('正在终止旧实例...');
-            process.kill(oldPid, 'SIGTERM');
-
-            // 等待一段时间让旧进程清理
-            setTimeout(() => {
-              try {
-                // 检查是否还存活，如果还存活则强制杀死
-                process.kill(oldPid, 0);
-                console.log('强制终止旧实例');
-                process.kill(oldPid, 'SIGKILL');
-              } catch (e) {
-                // 进程已经终止
-              }
-            }, 2000);
-
-            console.log('旧实例已终止，启动新实例');
-          } catch (killError) {
-            console.log(`终止旧实例失败: ${killError.message}`);
-          }
-        } catch (e) {
-          // 进程不存在，清理旧锁文件
-          console.log('清理无效的锁文件');
-          fs.unlinkSync(LOCK_FILE);
-        }
+        fs.unlinkSync(LOCK_FILE);
+        console.log('锁文件已清理');
       } catch (e) {
-        // 锁文件损坏，删除重建
-        console.log('锁文件损坏，重新创建');
-        try {
-          fs.unlinkSync(LOCK_FILE);
-        } catch (unlinkError) {
-          // 忽略删除错误
+        // 忽略删除错误
+      }
+    }
+
+    // 强制终止所有main.js实例
+    try {
+      const result = execSync('pgrep -f "node.*main.js"', { encoding: 'utf8' }).trim();
+      if (result) {
+        const pids = result.split('\n').filter(pid => pid && parseInt(pid) !== process.pid);
+        if (pids.length > 0) {
+          console.log(`发现${pids.length}个旧实例，正在终止...`);
+          for (const pid of pids) {
+            try {
+              console.log(`终止实例 PID: ${pid}`);
+              process.kill(parseInt(pid), 'SIGKILL');
+            } catch (e) {
+              // 忽略终止错误
+            }
+          }
+          console.log('所有旧实例已终止');
         }
       }
+    } catch (e) {
+      // 没有其他实例或命令失败
+      console.log('未发现其他实例');
     }
   }
 
@@ -129,9 +118,12 @@ class AutoRefresh {
     // 创建新的锁文件
     this.createLock();
 
-    console.log('CC-AutoRefresh 启动 - 定时重置模式');
-    console.log(`启动时间: ${new Date().toLocaleString()}`);
-    console.log(`进程 PID: ${process.pid}`);
+    console.log('======================================');
+    console.log('🚀 CC-AutoRefresh 启动 - 定时重置模式');
+    console.log(`📅 启动时间: ${new Date().toLocaleString()}`);
+    console.log(`🆔 进程 PID: ${process.pid}`);
+    console.log(`⏰ 执行时间: 每天 ${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}`);
+    console.log('======================================');
 
     while (true) {
       try {
