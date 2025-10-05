@@ -173,18 +173,23 @@ class AutoRefresh {
             }
           }
           
-          // 等待到第二天
+          // 等待到第二天,使用整块时间等待
           const waitTime = this.getWaitTimeToNextDay();
           console.log(`[${new Date().toLocaleString()}] 等待到明天${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，约${Math.round(waitTime/1000/60/60)}小时`);
-          await this.sleep(Math.min(waitTime, 4 * 60 * 60 * 1000)); // 最多等待4小时
-          
+          await this.sleep(waitTime);
+
         } else {
-          // 等待到设定时间
+          // 等待到设定时间,缩短检查间隔确保不错过
           const waitTime = this.getWaitTimeToResetTime();
+          const waitMinutes = Math.round(waitTime / 1000 / 60);
           const waitHours = Math.round(waitTime / 1000 / 60 / 60 * 10) / 10;
-          console.log(`[${new Date().toLocaleString()}] 等待到${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，还需${waitHours}小时`);
-          
-          await this.sleep(Math.min(waitTime, 2 * 60 * 60 * 1000)); // 最多等待2小时
+
+          // 如果距离执行时间小于30分钟,每分钟检查一次
+          const checkInterval = waitMinutes < 30 ? 60 * 1000 : Math.min(waitTime, 30 * 60 * 1000);
+
+          console.log(`[${new Date().toLocaleString()}] 等待到${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，还需${waitHours}小时 (${waitMinutes}分钟)`);
+
+          await this.sleep(checkInterval);
         }
         
       } catch (error) {
