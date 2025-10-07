@@ -130,20 +130,22 @@ class AutoRefresh {
         const now = new Date();
         const hour = now.getHours();
         const minute = now.getMinutes();
-        
+
+        console.log(`[${new Date().toLocaleString()}] 检查循环 - 当前时间 ${hour}:${minute.toString().padStart(2, '0')}`);
+
         // 只在设定时间执行（默认23:58-23:59）
         if (hour === this.RESET_HOUR && minute >= this.RESET_MINUTE && minute <= this.RESET_MINUTE + 1) {
-          console.log(`[${new Date().toLocaleString()}] 开始执行重置操作...`);
-          
+          console.log(`[${new Date().toLocaleString()}] 时间匹配! 开始执行重置操作...`);
+
           try {
             this.framework = new (require('./frameworks/headless'))(this.config);
             const result = await this.framework.execute();
-            
+
             if (result.success) {
-              console.log(`[${new Date().toLocaleString()}] 重置操作完成`);
+              console.log(`[${new Date().toLocaleString()}] ✅ 重置操作完成`);
             } else {
-              console.log(`[${new Date().toLocaleString()}] 重置操作失败: ${result.error || '未知错误'}`);
-              
+              console.log(`[${new Date().toLocaleString()}] ❌ 重置操作失败: ${result.error || '未知错误'}`);
+
               // 发送报警邮件
               if (this.config.email && this.config.email.enabled) {
                 console.log('准备发送报警邮件...');
@@ -155,7 +157,7 @@ class AutoRefresh {
 系统将在明天继续尝试。
 
 -- CC-AutoRefresh 自动化系统`;
-                
+
                 try {
                   await sendEmailAlert(this.config.email, alertMessage);
                   console.log('已发送邮件报警');
@@ -164,7 +166,7 @@ class AutoRefresh {
                 }
               }
             }
-            
+
           } catch (error) {
             console.log(`[${new Date().toLocaleString()}] 重置操作异常: ${error.message}`);
           } finally {
@@ -172,28 +174,48 @@ class AutoRefresh {
               await this.framework.cleanup();
             }
           }
-          
-          // 等待到第二天,使用整块时间等待
+
+          // 等待到第二天,使用分段等待避免长时间睡眠
           const waitTime = this.getWaitTimeToNextDay();
-          console.log(`[${new Date().toLocaleString()}] 等待到明天${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，约${Math.round(waitTime/1000/60/60)}小时`);
-          await this.sleep(waitTime);
+          const waitHours = Math.round(waitTime/1000/60/60 * 10) / 10;
+          console.log(`[${new Date().toLocaleString()}] 等待到明天${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，约${waitHours}小时`);
+
+          // 分段等待,每30分钟检查一次,避免长睡眠问题
+          let remainingWait = waitTime;
+          while (remainingWait > 0) {
+            const sleepTime = Math.min(remainingWait, 30 * 60 * 1000);
+            await this.sleep(sleepTime);
+            remainingWait -= sleepTime;
+            if (remainingWait > 0) {
+              console.log(`[${new Date().toLocaleString()}] 继续等待,剩余约${Math.round(remainingWait/1000/60/60 * 10) / 10}小时`);
+            }
+          }
 
         } else {
-          // 等待到设定时间,缩短检查间隔确保不错过
+          // 等待到设定时间
           const waitTime = this.getWaitTimeToResetTime();
           const waitMinutes = Math.round(waitTime / 1000 / 60);
           const waitHours = Math.round(waitTime / 1000 / 60 / 60 * 10) / 10;
 
-          // 如果距离执行时间小于30分钟,每分钟检查一次
-          const checkInterval = waitMinutes < 30 ? 60 * 1000 : Math.min(waitTime, 30 * 60 * 1000);
+          // 距离执行时间越近,检查越频繁
+          let checkInterval;
+          if (waitMinutes < 5) {
+            checkInterval = 30 * 1000;  // 30秒检查一次
+          } else if (waitMinutes < 30) {
+            checkInterval = 60 * 1000;  // 1分钟检查一次
+          } else {
+            checkInterval = Math.min(waitTime, 30 * 60 * 1000); // 最多30分钟
+          }
 
-          console.log(`[${new Date().toLocaleString()}] 等待到${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，还需${waitHours}小时 (${waitMinutes}分钟)`);
+          console.log(`[${new Date().toLocaleString()}] 等待到${this.RESET_HOUR}:${this.RESET_MINUTE.toString().padStart(2, '0')}，还需${waitHours}小时 (${waitMinutes}分钟)，下次检查间隔${Math.round(checkInterval/1000)}秒`);
 
           await this.sleep(checkInterval);
+          console.log(`[${new Date().toLocaleString()}] 睡眠结束,继续检查...`);
         }
-        
+
       } catch (error) {
         console.log(`[${new Date().toLocaleString()}] 程序异常: ${error.message}`);
+        console.error(error);
         await this.sleep(60 * 1000); // 等待1分钟
       }
     }
